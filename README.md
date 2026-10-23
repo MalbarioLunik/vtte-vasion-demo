@@ -44,6 +44,11 @@ Pour la démonstration, les demandes sont enregistrées **dans le navigateur** (
 ## Animations
 Gérées par `assets/js/motion.js` (+ fin de `style.css` et `app.css`) : titre qui apparaît mot à mot, apparitions en cascade au défilement, compteurs, photos en rideau et parallaxe, bandeaux croisés, parcours qui se trace avec un vélo qui le suit, cartes qui s'inclinent à la souris, en-tête qui se rétracte, transitions entre les pages, confettis à la confirmation d'une demande. Tout est désactivé automatiquement si le téléphone est réglé sur « réduire les animations ».
 
+Écran de chargement animé (éclair, logo, barre avec le vélo) : affiché une seule fois par visite, il attend la photo du héros (4 s maximum).
+
+## Photos
+Chaque photo existe en AVIF (léger) et WebP, en 480 à 2400 px, avec un recadrage vertical pour les grandes photos sur téléphone et un aperçu flou affiché pendant le chargement. Le diaporama de l'accueil ne passe à une photo que lorsqu'elle est chargée. Le générateur (`node _build/build.mjs`) s'arrête si une page référence une image absente.
+
 ## À valider avec le client
 - Minimums de participants par sortie (valeurs provisoires : Maïdo 4, Volcan 4, Repas Peï 4, Route des plages 2 ; maximum 7 comme sur le site actuel).
 - Nombre de vélos dans la flotte (provisoire : 8).

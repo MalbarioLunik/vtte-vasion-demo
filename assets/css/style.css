@@ -34,6 +34,11 @@ body {
 }
 body.no-bar { padding-bottom: 0; }
 img { max-width: 100%; height: auto; display: block; }
+/* les <picture> (AVIF + recadrage téléphone) ne changent pas la mise en page */
+picture { display: contents; }
+picture > source { display: none; }
+/* aperçu flou affiché pendant le chargement de la photo */
+img[style*="background-image"] { background-size: cover; background-position: center; background-repeat: no-repeat; }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
 svg.i { width: 1.15em; height: 1.15em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -154,19 +159,9 @@ p { margin: 0 0 1em; }
 /* ---------- Hero accueil ---------- */
 .hero { position: relative; min-height: 100svh; display: flex; align-items: flex-end; color: #fff; background: var(--ink); overflow: hidden; isolation: isolate; }
 .hero-media { position: absolute; inset: 0; z-index: -2; }
-.hero-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; animation: heroFade 24s infinite; }
-/* délai négatif : la 1re photo est déjà visible au chargement (pas d'écran noir) */
-.hero-media > :nth-child(1) img, .hero-media > img:nth-child(1) { animation-delay: -1.2s; opacity: 1; }
-.hero-media > :nth-child(2) img, .hero-media > img:nth-child(2) { animation-delay: 4.8s; }
-.hero-media > :nth-child(3) img, .hero-media > img:nth-child(3) { animation-delay: 10.8s; }
-.hero-media > :nth-child(4) img, .hero-media > img:nth-child(4) { animation-delay: 16.8s; }
-@keyframes heroFade {
-  0% { opacity: 0; transform: scale(1.04); }
-  4% { opacity: 1; }
-  25% { opacity: 1; }
-  30% { opacity: 0; transform: scale(1); }
-  100% { opacity: 0; }
-}
+.hero-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.06); transition: opacity 1.4s ease, transform 8s linear; }
+/* diaporama piloté par motion.js : une photo ne s'affiche que lorsqu'elle est chargée */
+.hero-media > .is-active img { opacity: 1; transform: scale(1); }
 .hero::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(13, 16, 14, .7) 0%, rgba(13, 16, 14, .15) 30%, rgba(13, 16, 14, .5) 62%, rgba(13, 16, 14, .96) 100%); }
 .hero-content { width: 100%; padding-top: calc(var(--header-h) + 40px); padding-bottom: 36px; }
 .hero h1 { max-width: 12ch; text-shadow: 0 4px 30px rgba(0, 0, 0, .35); }
@@ -278,7 +273,7 @@ p { margin: 0 0 1em; }
 .light .price-card.featured { background: var(--volt); }
 .stack-img { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stack-img img { border-radius: 20px; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; }
-.stack-img img:last-child { margin-top: 40px; }
+.stack-img > :nth-child(2) img { margin-top: 40px; }
 .avail { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); padding: 10px 18px; border-radius: 999px; background: var(--green); color: var(--ink); font-weight: 800; white-space: nowrap; box-shadow: var(--shadow); font-size: .9rem; }
 
 /* ---------- Galerie + visionneuse ---------- */
@@ -470,7 +465,7 @@ p { margin: 0 0 1em; }
 .media-frame.in img { clip-path: inset(0); }
 .js-motion .stack-img:not(.in) img { clip-path: inset(100% 0 0 0 round 20px); transform: translateY(30px); }
 .stack-img.in img { clip-path: inset(0 0 0 0 round 20px); }
-.stack-img.in img:last-of-type { transition-delay: .2s; }
+.stack-img.in > :nth-child(2) img { transition-delay: .2s; }
 .js-motion .stack-img:not(.in) .avail { opacity: 0; transform: translate(-50%, 20px) scale(.8); }
 .stack-img .avail { transition: opacity .5s .9s, transform .6s var(--ease-spring) .9s; }
 .js-motion .media-badge { transition: transform .7s var(--ease-spring) .8s, opacity .4s .8s; }
@@ -567,7 +562,7 @@ p { margin: 0 0 1em; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
-  .hero-media > :not(:first-child) img { display: none; }
+  .hero-media > :not(.is-active) img { display: none; }
   .hl { background-size: 100% .09em; }
 }
 
@@ -634,3 +629,29 @@ p { margin: 0 0 1em; }
   .fc-inner { margin-top: 0; padding-top: 170px; padding-bottom: 130px; }
   .fc-text { max-width: 540px; }
 }
+
+/* =================== Écran de chargement =================== */
+.loader { display: none; }
+.has-loader body { overflow: hidden; }
+.has-loader .loader {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; color: #fff;
+  background: radial-gradient(120% 80% at 50% 38%, #1d3322 0%, var(--ink) 62%);
+  clip-path: inset(0 0 0 0); transition: clip-path .85s cubic-bezier(.75, 0, .2, 1);
+}
+.loader.is-done { clip-path: inset(0 0 100% 0); }
+.loader.is-done .ld-inner { transform: translateY(-40px); opacity: 0; transition: transform .6s cubic-bezier(.7, 0, .2, 1), opacity .4s; }
+.ld-inner { display: grid; justify-items: center; gap: 16px; width: min(76vw, 330px); }
+.ld-bolt { width: 66px; height: 66px; fill: transparent; stroke: var(--volt); stroke-width: 1.3; stroke-linejoin: round; stroke-dasharray: 70; stroke-dashoffset: 70;
+  animation: boltDraw .6s ease-out forwards, boltFill .3s ease-out .5s forwards, boltGlow 1.5s ease-in-out .8s infinite; }
+@keyframes boltDraw { to { stroke-dashoffset: 0; } }
+@keyframes boltFill { to { fill: var(--volt); } }
+@keyframes boltGlow { 0%, 100% { filter: drop-shadow(0 0 0 rgba(240, 225, 74, 0)); transform: scale(1); } 50% { filter: drop-shadow(0 0 16px rgba(240, 225, 74, .75)); transform: scale(1.07) rotate(-3deg); } }
+.ld-logo { width: 100%; height: auto; opacity: 0; animation: ldLogo .6s var(--ease-out) .15s forwards; }
+@keyframes ldLogo { from { opacity: 0; transform: translateY(16px) skewX(-12deg); } to { opacity: 1; transform: none; } }
+.ld-track { --p: 0; position: relative; width: 100%; height: 4px; margin-top: 30px; border-radius: 4px; background: rgba(255, 255, 255, .12); }
+.ld-track i { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 1%); border-radius: 4px; background: linear-gradient(90deg, var(--green), var(--volt)); box-shadow: 0 0 14px rgba(240, 225, 74, .45); }
+.ld-bike { position: absolute; left: calc(var(--p) * 1%); bottom: 8px; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; display: grid; place-items: center; background: var(--volt); color: var(--ink); box-shadow: 0 6px 18px -6px rgba(240, 225, 74, .8); animation: bob .42s ease-in-out infinite alternate; }
+.ld-bike svg { width: 20px; height: 20px; }
+@keyframes bob { from { transform: translateY(0) rotate(0); } to { transform: translateY(-4px) rotate(-6deg); } }
+.ld-txt { margin: 4px 0 0; font-family: var(--font-display); font-style: italic; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; font-size: .85rem; color: var(--muted-dark); animation: ldBlink 1.6s ease-in-out infinite; }
+@keyframes ldBlink { 50% { opacity: .45; } }

@@ -14,6 +14,30 @@
     return;
   }
 
+  function whenIntro(fn) {
+    if (window.__introDone || !root.classList.contains('has-loader')) fn();
+    else document.addEventListener('ve:intro', fn, { once: true });
+  }
+
+  /* ---------- Diaporama du héros : on ne passe à une photo que si elle est chargée ---------- */
+  var slides = $$('.hero-media > picture, .hero-media > img');
+  if (slides.length > 1) {
+    var cur = Math.max(0, slides.findIndex(function (s) { return s.classList.contains('is-active'); }));
+    var imgOf = function (s) { return s.tagName === 'IMG' ? s : $('img', s); };
+    var loaded = function (s) { var i = imgOf(s); return i.complete && i.naturalWidth > 0; };
+    // les photos suivantes se chargent en arrière-plan une fois la première affichée
+    var warm = function () { slides.forEach(function (s, k) { if (k !== cur) { var i = imgOf(s); i.loading = 'eager'; i.fetchPriority = 'low'; } }); };
+    var first = imgOf(slides[cur]);
+    if (loaded(slides[cur])) setTimeout(warm, 800); else first.addEventListener('load', function () { setTimeout(warm, 500); }, { once: true });
+    setInterval(function () {
+      if (document.hidden) return;
+      for (var k = 1; k < slides.length; k++) {
+        var n = (cur + k) % slides.length;
+        if (loaded(slides[n])) { slides[cur].classList.remove('is-active'); slides[n].classList.add('is-active'); cur = n; return; }
+      }
+    }, 6000);
+  }
+
   /* ---------- Héros : titre mot à mot puis le reste en cascade ---------- */
   function splitWords(el) {
     var n = 0;
@@ -42,7 +66,8 @@
     $$('.lead, .post-meta, .btn-row, .chips, .steps > li, .hero-stats > div', hero).forEach(function (el, i) {
       el.style.setProperty('--d', (t + i * 0.1).toFixed(2) + 's');
     });
-    requestAnimationFrame(function () { hero.classList.add('ready'); });
+    // après l'écran de chargement s'il est affiché
+    whenIntro(function () { requestAnimationFrame(function () { hero.classList.add('ready'); }); });
   });
 
   /* ---------- Apparitions au défilement (cascade par lot visible) ---------- */
@@ -111,7 +136,7 @@
     $$(COUNT, el).forEach(function (c) { run(c); });
   }
   $$(COUNT).forEach(prepare);
-  $$('.hero .hero-stats b').forEach(function (el, i) { run(el, 900 + i * 120); });
+  whenIntro(function () { $$('.hero .hero-stats b').forEach(function (el, i) { run(el, 900 + i * 120); }); });
 
   /* ---------- Scroll : progression, en-tête, parallaxe, parcours ---------- */
   var bar = document.createElement('div');

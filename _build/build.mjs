@@ -27,19 +27,32 @@ const IMG = {
   'location-velos-2': [2560, 1707], 'repas-pei-assiette': [2560, 1920], 'repas-pei-feuille': [480, 539],
   'ferme-saint-leu-vue': [2560, 1439], 'route-des-plages': [1280, 680]
 };
-const widths = (n) => [480, 960, 1600, 2400].filter((w) => fs.existsSync(path.join(ROOT, 'assets/img', `${n}-${w}.webp`)));
+const widths = (n) => [480, 720, 960, 1600, 2400].filter((w) => fs.existsSync(path.join(ROOT, 'assets/img', `${n}-${w}.webp`)));
 const src = (n, w) => `assets/img/${n}-${w}.webp`;
 const big = (n) => { const ws = widths(n); return src(n, ws[ws.length - 1]); };
-// mobile : sur téléphone en portrait, recadrage vertical natif (nom-m.webp) au lieu d'agrandir le centre d'une photo horizontale
-function img(n, alt, { sizes = '100vw', cls = '', eager = false, mobile = false, pos = '' } = {}) {
+// Aperçus flous (16 px) générés avec les photos : visibles pendant le chargement
+const LQIP = JSON.parse(fs.readFileSync(path.join(ROOT, '_build/lqip.json'), 'utf8'));
+const MQ_PHONE = '(max-width: 767px) and (orientation: portrait)';
+const srcset = (n, ext) => widths(n).map((w) => `assets/img/${n}-${w}.${ext} ${w}w`).join(', ');
+const hasCrop = (n) => fs.existsSync(path.join(ROOT, `assets/img/${n}-m.webp`));
+// <picture> : AVIF (plus léger) puis WebP ; mobile = recadrage vertical natif sur téléphone en portrait
+function img(n, alt, { sizes = '100vw', cls = '', eager = false, mobile = false, pos = '', active = false } = {}) {
   if (!IMG[n]) throw new Error('Image inconnue : ' + n);
-  const ws = widths(n); const [W, H] = IMG[n];
+  const ws = widths(n);
+  if (!ws.length) throw new Error('Aucune taille générée pour ' + n);
+  const [W, H] = IMG[n];
   const def = src(n, ws.includes(960) ? 960 : ws[ws.length - 1]);
-  const tag = `<img src="${def}" srcset="${ws.map((w) => `${src(n, w)} ${w}w`).join(', ')}" sizes="${sizes}" width="${W}" height="${H}" alt="${esc(alt)}"${eager ? ' fetchpriority="high"' : ' loading="lazy" decoding="async"'}${cls ? ` class="${cls}"` : ''}${pos ? ` style="object-position:${pos}"` : ''}>`;
-  const crop = `assets/img/${n}-m.webp`;
-  if (!mobile || !fs.existsSync(path.join(ROOT, crop))) return tag;
-  return `<picture><source media="(max-width: 767px) and (orientation: portrait)" srcset="${crop}">${tag}</picture>`;
+  const style = [LQIP[n] && `background-image:url(${LQIP[n]})`, pos && `object-position:${pos};background-position:${pos}`].filter(Boolean).join(';');
+  const tag = `<img src="${def}" srcset="${srcset(n, 'webp')}" sizes="${sizes}" width="${W}" height="${H}" alt="${esc(alt)}"${eager ? ' fetchpriority="high"' : ' loading="lazy" decoding="async"'}${cls ? ` class="${cls}"` : ''}${style ? ` style="${style}"` : ''}>`;
+  const crop = mobile && hasCrop(n)
+    ? `<source media="${MQ_PHONE}" type="image/avif" srcset="assets/img/${n}-m.avif"><source media="${MQ_PHONE}" srcset="assets/img/${n}-m.webp">` : '';
+  return `<picture${active ? ' class="is-active"' : ''}>${crop}<source type="image/avif" srcset="${srcset(n, 'avif')}" sizes="${sizes}">${tag}</picture>`;
 }
+// Précharge la photo du héros (avant même la lecture de la page)
+const preloadHero = (n) => (hasCrop(n)
+  ? `<link rel="preload" as="image" type="image/avif" href="assets/img/${n}-m.avif" media="${MQ_PHONE}" fetchpriority="high">
+<link rel="preload" as="image" type="image/avif" imagesrcset="${srcset(n, 'avif')}" imagesizes="100vw" media="(min-width: 768px), (orientation: landscape)" fetchpriority="high">`
+  : `<link rel="preload" as="image" type="image/avif" imagesrcset="${srcset(n, 'avif')}" imagesizes="100vw" fetchpriority="high">`) + String.fromCharCode(10);
 
 /* ---------- Icônes (traits 24px) ---------- */
 const ICONS = {
@@ -208,7 +221,16 @@ const FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;1,700;1,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">`;
 
 // Active les animations dès le premier rendu ; si motion.js ne se charge pas, on les retire après 3 s
-const MOTION_BOOT = `<script>(function(d){if(!matchMedia('(prefers-reduced-motion: reduce)').matches){d.classList.add('js-motion');setTimeout(function(){if(!window.__motion)d.classList.remove('js-motion')},3000)}})(document.documentElement)</script>`;
+// Écran de chargement : seulement à la première page vue de la visite ; retiré d'office après 6 s si un script échoue
+const MOTION_BOOT = `<script>(function(d){var r=matchMedia('(prefers-reduced-motion: reduce)').matches;if(!r){d.classList.add('js-motion');setTimeout(function(){if(!window.__motion)d.classList.remove('js-motion')},3000)}try{if(!r&&!sessionStorage.getItem('ve-intro')){d.classList.add('has-loader');setTimeout(function(){d.classList.remove('has-loader')},6000)}}catch(e){}})(document.documentElement)</script>`;
+const LOADER = `<div class="loader" aria-hidden="true" data-loader>
+  <div class="ld-inner">
+    <svg class="ld-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    <img class="ld-logo" src="assets/img/logo.webp" width="483" height="127" alt="">
+    <div class="ld-track" data-loader-track><i></i><span class="ld-bike"><svg class="i"><use href="#i-bike"/></svg></span></div>
+    <p class="ld-txt">L’île intense arrive…</p>
+  </div>
+</div>`;
 
 function head({ title, desc, extra = '' }) {
   return `<!doctype html>
@@ -233,11 +255,12 @@ ${extra}
 </head>`;
 }
 
-function page({ file, title, desc, active, body, scripts = [], noBar = false, extraHead = '' }) {
-  const html = `${head({ title, desc, extra: MOTION_BOOT + extraHead })}
+function page({ file, title, desc, active, body, scripts = [], noBar = false, extraHead = '', preload = '' }) {
+  const html = `${head({ title, desc, extra: MOTION_BOOT + (preload ? preloadHero(preload) : '') + extraHead })}
 <body${noBar ? ' class="no-bar"' : ''}>
 <a class="skip" href="#main">Aller au contenu</a>
 ${SPRITE}
+${LOADER}
 ${header(active)}
 <main id="main">
 ${body}
@@ -324,7 +347,7 @@ const GALLERY = [
 ];
 
 page({
-  file: 'index.html', active: 'home',
+  file: 'index.html', active: 'home', preload: 'volcan-groupe-piste',
   title: 'VTT É-vasion – Sorties E-VTT guidées & location de VTT électrique à La Réunion',
   desc: 'Sorties VTT à La Réunion en E-VTT avec guide diplômé BPJEPS : Maïdo, volcan Piton de la Fournaise, Route des plages et repas Peï à la ferme. Petits groupes, matériel récent, location E-VTT.',
   extraHead: `<script type="application/ld+json">${JSON.stringify({
@@ -337,7 +360,7 @@ page({
   body: `
 <section class="hero">
   <div class="hero-media" aria-hidden="true">
-    ${img('volcan-groupe-piste', '', { eager: true, mobile: true })}
+    ${img('volcan-groupe-piste', '', { eager: true, mobile: true, active: true })}
     ${img('groupe-route-foret', '', { mobile: true })}
     ${img('volcan-guidon', '', { mobile: true })}
     ${img('location-velos-2', '', { mobile: true })}
@@ -482,7 +505,7 @@ ${cta({
 for (const s of SORTIES) {
   const others = SORTIES.filter((o) => o.id !== s.id);
   page({
-    file: s.slug + '.html', active: 'sorties', title: s.metaTitle, desc: s.metaDesc,
+    file: s.slug + '.html', active: 'sorties', title: s.metaTitle, desc: s.metaDesc, preload: s.hero,
     body: `
 <section class="page-hero has-img">
   ${img(s.hero, s.heroAlt, { eager: true, cls: 'ph-img', mobile: true })}
@@ -577,7 +600,7 @@ ${cta({
 
 /* ---------- Location ---------- */
 page({
-  file: 'location-e-vtt.html', active: 'location',
+  file: 'location-e-vtt.html', active: 'location', preload: 'location-velos-2',
   title: 'Location VTT électrique La Réunion – E-VTT à la journée | VTT É-vasion',
   desc: 'Location de VTT électriques tout-suspendus à La Réunion : 59 € la demi-journée, 79 € la journée, 69 € par vélo dès 3 vélos. Casque, gants et conseils d’itinéraires inclus. Départ La Saline-les-Bains.',
   body: `
@@ -857,7 +880,7 @@ ${cta({ image: 'groupe-route-foret', eyebrow: 'Envie de rouler ?', title: 'Passe
 for (const p of POSTS) {
   const others = POSTS.filter((o) => o.slug !== p.slug);
   page({
-    file: p.slug + '.html', active: 'blog', title: p.title + ' | VTT É-vasion', desc: p.excerpt,
+    file: p.slug + '.html', active: 'blog', title: p.title + ' | VTT É-vasion', desc: p.excerpt, preload: p.hero,
     body: `
 <section class="page-hero has-img" style="min-height:70svh">
   ${img(p.hero, p.heroAlt || p.title, { eager: true, cls: 'ph-img', mobile: true })}
@@ -928,3 +951,14 @@ fs.writeFileSync(path.join(ROOT, 'gerant.webmanifest'), JSON.stringify({
   icons: [{ src: 'assets/img/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: 'assets/img/icon-512.png', sizes: '512x512', type: 'image/png' }]
 }, null, 2));
 console.log('✓ gerant.webmanifest');
+
+/* ---------- Contrôle : toute image / feuille / script référencé doit exister ---------- */
+let missing = 0;
+for (const f of fs.readdirSync(ROOT).filter((x) => x.endsWith('.html'))) {
+  const html = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  for (const ref of new Set([...html.matchAll(/assets\/[\w/.-]+\.(?:webp|avif|png|jpg|css|js|svg)/g)].map((m) => m[0]))) {
+    if (!fs.existsSync(path.join(ROOT, ref))) { console.error('✗ manquant :', f, ref); missing++; }
+  }
+}
+if (missing) { console.error(missing + ' fichier(s) manquant(s)'); process.exit(1); }
+console.log('✓ tous les fichiers référencés existent');

@@ -4,6 +4,34 @@
   var $ = function (s, c) { return (c || document).querySelector(s); };
   var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
 
+  /* Écran de chargement : attend la photo du héros (et les polices), au moins ~1 s pour l'animation, 4 s au plus.
+     Annonce la fin par l'événement 've:intro' (motion.js lance alors les animations du héros). */
+  (function () {
+    var d = document.documentElement, el = $('[data-loader]');
+    function intro() { window.__introDone = true; document.dispatchEvent(new Event('ve:intro')); }
+    if (!el || !d.classList.contains('has-loader')) { if (el) el.remove(); intro(); return; }
+    var track = $('[data-loader-track]', el), t0 = performance.now(), p = 0, done = false, waits = [];
+    var hero = $('.hero-media .is-active img, .page-hero .ph-img');
+    if (hero && !(hero.complete && hero.naturalWidth)) {
+      waits.push(new Promise(function (r) { hero.addEventListener('load', r, { once: true }); hero.addEventListener('error', r, { once: true }); }));
+    }
+    if (document.fonts && document.fonts.ready) waits.push(document.fonts.ready);
+    (function tick() { if (done) return; p += (88 - p) * 0.045; track.style.setProperty('--p', p.toFixed(1)); requestAnimationFrame(tick); })();
+    function finish() {
+      if (done) return;
+      done = true;
+      track.style.setProperty('--p', 100);
+      setTimeout(function () {
+        el.classList.add('is-done');
+        try { sessionStorage.setItem('ve-intro', '1'); } catch (e) { }
+        setTimeout(intro, 250);
+        setTimeout(function () { d.classList.remove('has-loader'); el.remove(); }, 900);
+      }, Math.max(300, 1300 - (performance.now() - t0)));
+    }
+    Promise.all(waits).then(finish, finish);
+    setTimeout(finish, 4000);
+  })();
+
   /* En-tête : opaque après le haut de page */
   var header = $('[data-header]');
   function onScroll() { if (header) header.classList.toggle('is-solid', window.scrollY > 40); }
