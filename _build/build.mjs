@@ -20,21 +20,25 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').repl
 const ic = (n, cls = 'i') => `<svg class="${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 
 const IMG = {
-  'groupe-route-foret': [1600, 1200], 'maido-mafate': [1600, 2133], 'maido-foret': [1600, 2133],
-  'maido-champs': [1600, 2133], 'maido-sentier': [1600, 2133], 'volcan-guidon': [1600, 1200],
-  'volcan-groupe-piste': [1600, 1200], 'volcan-parking': [1600, 1200], 'volcan-groupe': [1600, 2133],
-  'volcan-coulees': [1600, 2133], 'volcan-velos-focus': [1600, 2133], 'location-velos': [1600, 2400],
-  'location-velos-2': [1600, 1067], 'repas-pei-assiette': [1600, 1200], 'repas-pei-feuille': [480, 539],
-  'ferme-saint-leu-vue': [1600, 899], 'route-des-plages': [1280, 680]
+  'groupe-route-foret': [2560, 1920], 'maido-mafate': [1920, 2560], 'maido-foret': [1920, 2560],
+  'maido-champs': [1920, 2560], 'maido-sentier': [1920, 2560], 'volcan-guidon': [2560, 1920],
+  'volcan-groupe-piste': [2560, 1920], 'volcan-parking': [2560, 1920], 'volcan-groupe': [1920, 2560],
+  'volcan-coulees': [1920, 2560], 'volcan-velos-focus': [1680, 2240], 'location-velos': [1707, 2560],
+  'location-velos-2': [2560, 1707], 'repas-pei-assiette': [2560, 1920], 'repas-pei-feuille': [480, 539],
+  'ferme-saint-leu-vue': [2560, 1439], 'route-des-plages': [1280, 680]
 };
-const widths = (n) => [480, 960, 1600].filter((w) => fs.existsSync(path.join(ROOT, 'assets/img', `${n}-${w}.webp`)));
+const widths = (n) => [480, 960, 1600, 2400].filter((w) => fs.existsSync(path.join(ROOT, 'assets/img', `${n}-${w}.webp`)));
 const src = (n, w) => `assets/img/${n}-${w}.webp`;
 const big = (n) => { const ws = widths(n); return src(n, ws[ws.length - 1]); };
-function img(n, alt, { sizes = '100vw', cls = '', eager = false } = {}) {
+// mobile : sur téléphone en portrait, recadrage vertical natif (nom-m.webp) au lieu d'agrandir le centre d'une photo horizontale
+function img(n, alt, { sizes = '100vw', cls = '', eager = false, mobile = false, pos = '' } = {}) {
   if (!IMG[n]) throw new Error('Image inconnue : ' + n);
   const ws = widths(n); const [W, H] = IMG[n];
   const def = src(n, ws.includes(960) ? 960 : ws[ws.length - 1]);
-  return `<img src="${def}" srcset="${ws.map((w) => `${src(n, w)} ${w}w`).join(', ')}" sizes="${sizes}" width="${W}" height="${H}" alt="${esc(alt)}"${eager ? ' fetchpriority="high"' : ' loading="lazy" decoding="async"'}${cls ? ` class="${cls}"` : ''}>`;
+  const tag = `<img src="${def}" srcset="${ws.map((w) => `${src(n, w)} ${w}w`).join(', ')}" sizes="${sizes}" width="${W}" height="${H}" alt="${esc(alt)}"${eager ? ' fetchpriority="high"' : ' loading="lazy" decoding="async"'}${cls ? ` class="${cls}"` : ''}${pos ? ` style="object-position:${pos}"` : ''}>`;
+  const crop = `assets/img/${n}-m.webp`;
+  if (!mobile || !fs.existsSync(path.join(ROOT, crop))) return tag;
+  return `<picture><source media="(max-width: 767px) and (orientation: portrait)" srcset="${crop}">${tag}</picture>`;
 }
 
 /* ---------- Icônes (traits 24px) ---------- */
@@ -285,11 +289,14 @@ const phoneLines = () => `<div class="cta-phones">
   <a class="phone-line" href="tel:${C.locTel}"><span class="ic">${ic('bike')}</span><span><small>Location E-VTT</small><b>${C.locTelLabel}</b></span></a>
 </div>`;
 
+// Bloc final « réserver » : pleine largeur, enchaîné avec le pied de page ; la photo n'est pas assombrie
+// (fondu sur les bords) pour garder les visages nets. pos = cadrage de la photo.
+const CTA_POS = { 'maido-mafate': '50% 22%', 'maido-foret': '50% 30%', 'groupe-route-foret': '70% 50%' };
 function cta({ image = 'maido-mafate', eyebrow = 'Prêt à rouler ?', title, text, buttons }) {
-  return `<section class="section-tight">
-  <div class="container">
-    <div class="cta reveal">
-      ${img(image, '', { sizes: '100vw' })}
+  return `<section class="final-cta">
+  <div class="fc-media" aria-hidden="true">${img(image, '', { sizes: '(min-width:1024px) 62vw, 100vw', pos: CTA_POS[image] || '' })}</div>
+  <div class="container fc-inner">
+    <div class="fc-text">
       <span class="eyebrow">${eyebrow}</span>
       <h2>${title}</h2>
       <p class="lead">${text}</p>
@@ -330,10 +337,10 @@ page({
   body: `
 <section class="hero">
   <div class="hero-media" aria-hidden="true">
-    ${img('volcan-groupe-piste', '', { eager: true })}
-    ${img('groupe-route-foret', '')}
-    ${img('volcan-guidon', '')}
-    ${img('location-velos-2', '')}
+    ${img('volcan-groupe-piste', '', { eager: true, mobile: true })}
+    ${img('groupe-route-foret', '', { mobile: true })}
+    ${img('volcan-guidon', '', { mobile: true })}
+    ${img('location-velos-2', '', { mobile: true })}
   </div>
   <div class="container hero-content">
     <div class="hero-grid">
@@ -478,7 +485,7 @@ for (const s of SORTIES) {
     file: s.slug + '.html', active: 'sorties', title: s.metaTitle, desc: s.metaDesc,
     body: `
 <section class="page-hero has-img">
-  ${img(s.hero, s.heroAlt, { eager: true, cls: 'ph-img' })}
+  ${img(s.hero, s.heroAlt, { eager: true, cls: 'ph-img', mobile: true })}
   <div class="container inner">
     <nav class="crumbs" aria-label="Fil d’Ariane"><a href="index.html">Accueil</a> / <a href="index.html#sorties">Sorties</a> / <span>${s.menu}</span></nav>
     <span class="eyebrow">${s.eyebrow}</span>
@@ -553,17 +560,17 @@ ${s.gallery.length ? `<section class="section" style="padding-top:0">
   </div>
 </section>` : ''}
 
-${cta({
-      image: s.ctaImage, eyebrow: s.ctaEyebrow, title: s.ctaTitle, text: s.ctaText,
-      buttons: `<a class="btn btn-volt" href="reserver.html?sortie=${s.id}">${ic('cal')} Réserver cette sortie</a><a class="btn btn-ghost" href="contact.html">${ic('mail')} Une question ?</a>`
-    })}
-
 <section class="section">
   <div class="container">
     <div class="section-head"><span class="eyebrow">À découvrir aussi</span><h2>Autres sorties <span class="hl">E-VTT</span></h2></div>
     <div class="rail">${others.map((o) => tripCard(o, '(min-width:1024px) 33vw, (min-width:640px) 46vw, 82vw')).join('')}</div>
   </div>
 </section>
+
+${cta({
+      image: s.ctaImage, eyebrow: s.ctaEyebrow, title: s.ctaTitle, text: s.ctaText,
+      buttons: `<a class="btn btn-volt" href="reserver.html?sortie=${s.id}">${ic('cal')} Réserver cette sortie</a><a class="btn btn-ghost" href="contact.html">${ic('mail')} Une question ?</a>`
+    })}
 `
   });
 }
@@ -575,7 +582,7 @@ page({
   desc: 'Location de VTT électriques tout-suspendus à La Réunion : 59 € la demi-journée, 79 € la journée, 69 € par vélo dès 3 vélos. Casque, gants et conseils d’itinéraires inclus. Départ La Saline-les-Bains.',
   body: `
 <section class="page-hero has-img">
-  ${img('location-velos-2', 'Location VTT électrique à La Réunion, E-VTT tout-suspendus', { eager: true, cls: 'ph-img' })}
+  ${img('location-velos-2', 'Location VTT électrique à La Réunion, E-VTT tout-suspendus', { eager: true, cls: 'ph-img', mobile: true })}
   <div class="container inner">
     <nav class="crumbs" aria-label="Fil d’Ariane"><a href="index.html">Accueil</a> / <span>Location E-VTT</span></nav>
     <span class="eyebrow">Location VTT électrique · La Réunion</span>
@@ -853,7 +860,7 @@ for (const p of POSTS) {
     file: p.slug + '.html', active: 'blog', title: p.title + ' | VTT É-vasion', desc: p.excerpt,
     body: `
 <section class="page-hero has-img" style="min-height:70svh">
-  ${img(p.hero, p.heroAlt || p.title, { eager: true, cls: 'ph-img' })}
+  ${img(p.hero, p.heroAlt || p.title, { eager: true, cls: 'ph-img', mobile: true })}
   <div class="container inner">
     <nav class="crumbs" aria-label="Fil d’Ariane"><a href="index.html">Accueil</a> / <a href="blog.html">Blog</a> / <span>Article</span></nav>
     <span class="eyebrow">Blog</span>

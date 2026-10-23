@@ -46,8 +46,8 @@
   });
 
   /* ---------- Apparitions au défilement (cascade par lot visible) ---------- */
-  var GROUPS = '.section-head, .rail, .posts, .highlights, .infos, .prices, .photo-grid, .masonry, .checks, .groups-list, .mini-groups, .faq, .contact-cards, .cta-phones, .foot-grid, .facts, .og-list, .day-stack';
-  var SINGLES = '.reveal, .media-frame, .stack-img, .cta, .sheet-card, .min-note, .post-cta, .prose > *, .split > div > h2, .bk-main, .bk-day, .demo-note, .trail';
+  var GROUPS = '.section-head, .rail, .posts, .highlights, .infos, .prices, .photo-grid, .masonry, .checks, .groups-list, .mini-groups, .faq, .contact-cards, .cta-phones, .fc-text, .foot-grid, .facts, .og-list, .day-stack';
+  var SINGLES = '.reveal, .media-frame, .stack-img, .sheet-card, .min-note, .post-cta, .prose > *, .split > div > h2, .bk-main, .bk-day, .demo-note, .trail';
   var io = new IntersectionObserver(function (entries) {
     var batch = entries.filter(function (e) { return e.isIntersecting; }).map(function (e) { return e.target; });
     batch.sort(function (a, b) { return a.compareDocumentPosition(b) & 4 ? -1 : 1; });
@@ -122,7 +122,7 @@
   var header = $('[data-header]'), menu = $('[data-menu]');
   var lastY = window.scrollY;
   var parallax = $$('.hero-media, .page-hero .ph-img').map(function (el) { return { el: el, top: true }; })
-    .concat($$('.cta > img').map(function (el) { return { el: el, top: false }; }));
+    .concat($$('.fc-media img').map(function (el) { return { el: el, top: false }; }));
   var SVGNS = 'http://www.w3.org/2000/svg';
   var trails = $$('[data-trail]').map(function (svg) {
     return { svg: svg, path: $('.trail-line', svg), rider: $('.trail-rider', svg), len: 0, stops: [] };
@@ -153,11 +153,12 @@
     }
     lastY = y;
     parallax.forEach(function (p) {
-      if (p.top) { if (y < vh * 1.3) p.el.style.transform = 'translate3d(0,' + (y * 0.3).toFixed(1) + 'px,0)'; return; }
+      if (p.top) { if (y < vh * 1.3) p.el.style.transform = 'translate3d(0,' + (y * 0.25).toFixed(1) + 'px,0)'; return; }
       var r = p.el.parentNode.getBoundingClientRect();
       if (r.bottom < 0 || r.top > vh) return;
       var prog = (r.top + r.height / 2 - vh / 2) / vh;
-      p.el.style.transform = 'translate3d(0,' + (prog * -70).toFixed(1) + 'px,0) scale(1.18)';
+      // léger : la photo reste nette (agrandissement limité à 6 %)
+      p.el.style.transform = 'translate3d(0,' + (prog * -22).toFixed(1) + 'px,0) scale(1.06)';
     });
     trails.forEach(function (t) {
       var r = t.svg.getBoundingClientRect();
