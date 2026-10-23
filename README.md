@@ -41,6 +41,9 @@ Pour la démonstration, les demandes sont enregistrées **dans le navigateur** (
 - Protéger `gerant.html` par une connexion.
 - Ajouter les mentions légales et la politique de confidentialité.
 
+## Animations
+Gérées par `assets/js/motion.js` (+ fin de `style.css` et `app.css`) : titre qui apparaît mot à mot, apparitions en cascade au défilement, compteurs, photos en rideau et parallaxe, bandeaux croisés, parcours qui se trace avec un vélo qui le suit, cartes qui s'inclinent à la souris, en-tête qui se rétracte, transitions entre les pages, confettis à la confirmation d'une demande. Tout est désactivé automatiquement si le téléphone est réglé sur « réduire les animations ».
+
 ## À valider avec le client
 - Minimums de participants par sortie (valeurs provisoires : Maïdo 4, Volcan 4, Repas Peï 4, Route des plages 2 ; maximum 7 comme sur le site actuel).
 - Nombre de vélos dans la flotte (provisoire : 8).

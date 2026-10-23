@@ -25,15 +25,7 @@
   if (menu) $$('a', menu).forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menu && menu.classList.contains('open')) setMenu(false); });
 
-  /* Apparition au défilement */
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
-    }, { rootMargin: '0px 0px -8% 0px', threshold: .08 });
-    $$('.reveal').forEach(function (el) { io.observe(el); });
-  } else {
-    $$('.reveal').forEach(function (el) { el.classList.add('in'); });
-  }
+  /* (les apparitions au défilement sont gérées par motion.js) */
 
   /* Visionneuse photo */
   var lb = $('[data-lightbox]');

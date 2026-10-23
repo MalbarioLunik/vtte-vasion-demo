@@ -39,7 +39,18 @@
     box.appendChild(t);
     setTimeout(function () { t.remove(); }, opts.duration || 5000);
   }
+  var trigger = null; // bouton à l'origine de l'action, pour animer la sortie de sa carte
   function act(fn, message, item) {
+    var card = item && trigger && trigger.closest('.card');
+    if (card && !card.classList.contains('leaving') && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      card.classList.add('leaving');
+      if (item.ok) card.classList.add('ok');
+      setTimeout(function () { apply(fn, message, item); }, 340);
+      return;
+    }
+    apply(fn, message, item);
+  }
+  function apply(fn, message, item) {
     var snap = VE.snapshot();
     // ajouté avant fn() : la sauvegarde relance le rendu, qui doit déjà voir l'élément
     if (item) recent = [item].concat(recent).slice(0, 6);
@@ -226,7 +237,22 @@
     if (ui.view === 'planning') renderPlanning();
     if (ui.view === 'reglages') renderReglages();
   }
-  function go(view) { ui.view = view; render(); window.scrollTo(0, 0); }
+  function go(view) { ui.view = view; render(); animate(); window.scrollTo(0, 0); }
+  // entrée en cascade de la vue affichée + compteurs des chiffres clés
+  function animate() {
+    var v = views[ui.view];
+    v.classList.remove('anim'); void v.offsetWidth; v.classList.add('anim');
+    clearTimeout(animate.t); animate.t = setTimeout(function () { v.classList.remove('anim'); }, 1400);
+    $$('.kpi b', v).forEach(function (b, i) {
+      var to = +b.textContent; if (!to) return;
+      var t0 = performance.now() + i * 60;
+      (function step(now) {
+        var p = Math.max(0, Math.min(1, (now - t0) / 700));
+        b.textContent = Math.round(to * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(step);
+      })(performance.now());
+    });
+  }
 
   /* ---------- Nouvelles demandes ---------- */
   function checkNew() {
@@ -238,7 +264,7 @@
       var text = 'Nouvelle demande : ' + r.name + ' · ' + what + ' · ' + VE.dateShort(r.date);
       toast(svg('bell') + ' ' + esc(text), { cls: 'new', action: 'Voir', onAction: function () { ui.filter = 'all'; go('demandes'); }, duration: 8000 });
       var bell = $('[data-bell]'); bell.classList.remove('ring'); void bell.offsetWidth; bell.classList.add('ring');
-      if (navigator.vibrate) navigator.vibrate([90, 50, 90]);
+      if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([90, 50, 90]);
       if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
         try { new Notification('VTT É-vasion', { body: text, icon: 'assets/img/icon-192.png' }); } catch (e) { }
       }
@@ -249,6 +275,7 @@
   /* ---------- Actions ---------- */
   document.addEventListener('click', function (e) {
     var t = e.target.closest('button, [data-tab]'); if (!t) return;
+    trigger = t;
     var d = t.dataset;
     if (d.tab) return go(d.tab);
     if (d.go) return go(d.go);
@@ -298,4 +325,5 @@
   }
 
   render();
+  animate();
 })();

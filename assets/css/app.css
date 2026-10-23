@@ -304,3 +304,105 @@
   .kpis { grid-template-columns: repeat(4, 1fr); }
   .adm-main { padding-inline: 24px; }
 }
+
+/* =================== Animations (calendrier + gérant) =================== */
+/* Onglets : pastille qui glisse */
+.bk-tabs { position: relative; }
+.bk-tabs::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 6px); border-radius: 12px; background: var(--ink); box-shadow: 0 6px 16px -8px rgba(13, 16, 14, .6); transition: transform .5s var(--ease-spring); }
+.bk-tabs[data-mode="location"]::before { transform: translateX(calc(100% + 4px)); }
+.bk-tabs button { position: relative; z-index: 1; white-space: nowrap; }
+@media (max-width: 400px) { .bk-tabs button { font-size: .88rem; gap: 6px; } }
+.bk-tabs button[aria-selected="true"] { background: transparent; box-shadow: none; }
+.act-chip { transition: border-color .2s, background .25s, color .25s, transform .3s var(--ease-spring); }
+.act-chip:active { transform: scale(.94); }
+.act-chip img { transition: transform .5s var(--ease-spring); }
+.act-chip[aria-checked="true"] img { transform: rotate(-8deg) scale(1.08); }
+
+/* Jours du calendrier en cascade, glissement au changement de mois */
+.cal-grid.anim .day:not(.is-empty) { animation: dayIn .5s var(--ease-out) both; animation-delay: calc(var(--d, 0) * 13ms); }
+.cal-grid.anim.next .day:not(.is-empty) { animation-name: dayFromRight; }
+.cal-grid.anim.prev .day:not(.is-empty) { animation-name: dayFromLeft; }
+@keyframes dayIn { from { opacity: 0; transform: translateY(10px) scale(.88); } }
+@keyframes dayFromRight { from { opacity: 0; transform: translateX(26px); } }
+@keyframes dayFromLeft { from { opacity: 0; transform: translateX(-26px); } }
+.cal-title.flip { animation: titleFlip .5s var(--ease-out); }
+@keyframes titleFlip { from { opacity: 0; transform: translateY(12px) rotateX(60deg); } }
+.day[aria-selected="true"] { animation: dayPop .45s var(--ease-spring); }
+@keyframes dayPop { 0% { transform: scale(.82); } 60% { transform: scale(1.08); } 100% { transform: none; } }
+.day:not(.is-past):hover .num { transform: scale(1.12); }
+.day .num { transition: transform .25s var(--ease-spring); }
+.cal-nav { transition: background .2s, transform .3s var(--ease-spring); }
+.cal-nav:not(:disabled):hover { background: var(--volt); }
+.cal-nav:not(:disabled):active { transform: scale(.9); }
+
+/* Panneau du jour : éléments en cascade */
+.bk-day.swap > *, .bk-day.swap .day-stack > * { animation: panelIn .5s var(--ease-out) both; }
+.bk-day.swap > :nth-child(2) { animation-delay: .05s; }
+.bk-day.swap .day-stack > :nth-child(1) { animation-delay: .1s; }
+.bk-day.swap .day-stack > :nth-child(2) { animation-delay: .16s; }
+.bk-day.swap .day-stack > :nth-child(3) { animation-delay: .22s; }
+.bk-day.swap .day-stack > :nth-child(n+4) { animation-delay: .28s; }
+@keyframes panelIn { from { opacity: 0; transform: translateY(16px); } }
+.og { transition: transform .3s var(--ease-spring), box-shadow .2s; }
+.og:hover { transform: translateY(-3px); }
+.sess-card { transition: transform .3s var(--ease-out); }
+
+/* Feuille de réservation */
+.sheet .field, .sheet .sess-card, .sheet [data-mininfo] { animation: panelIn .45s var(--ease-out) both; }
+.sheet .sheet-body > :nth-child(2) { animation-delay: .05s; }
+.sheet .sheet-body > :nth-child(3) { animation-delay: .1s; }
+.sheet .sheet-body > :nth-child(4) { animation-delay: .15s; }
+.sheet .sheet-body > :nth-child(n+5) { animation-delay: .2s; }
+.stepper output { transition: transform .25s var(--ease-spring); }
+.stepper button:active + output, .stepper output:has(+ button:active) { transform: scale(1.25); }
+[data-total] { display: inline-block; transition: transform .3s var(--ease-spring); }
+.notice { animation: panelIn .35s var(--ease-out) both; }
+
+/* Confirmation : coche qui se dessine + confettis */
+.success { position: relative; }
+.success .big-ic { animation: popIn .6s var(--ease-spring) both; position: relative; }
+.success .big-ic::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 0 rgba(76, 175, 90, .6); animation: ripple 1.2s ease-out .25s; }
+.success .big-ic svg { stroke-dasharray: 26; stroke-dashoffset: 26; animation: draw .55s ease-out .35s forwards; }
+.success > :not(.big-ic):not(.confetti) { animation: panelIn .5s var(--ease-out) both; animation-delay: .35s; }
+@keyframes popIn { from { transform: scale(0) rotate(-30deg); } }
+@keyframes ripple { to { box-shadow: 0 0 0 26px rgba(76, 175, 90, 0); } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.confetti { position: absolute; left: 50%; top: 38px; width: 8px; height: 12px; border-radius: 2px; pointer-events: none; z-index: 5; animation: confetti 1.5s cubic-bezier(.15, .7, .3, 1) both; }
+@keyframes confetti {
+  0% { transform: translate(-50%, 0) rotate(0) scale(.4); opacity: 1; }
+  60% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--x)), calc(var(--y) + 140px)) rotate(var(--r)) scale(1); opacity: 0; }
+}
+
+/* Gérant */
+.adm-view.anim .hello, .adm-view.anim .kpi, .adm-view.anim .filters, .adm-view.anim .card, .adm-view.anim .day-block, .adm-view.anim .set-group, .adm-view.anim .notify { animation: panelIn .55s var(--ease-out) both; }
+.adm-view.anim .kpi:nth-child(2) { animation-delay: .05s; }
+.adm-view.anim .kpi:nth-child(3) { animation-delay: .1s; }
+.adm-view.anim .kpi:nth-child(4) { animation-delay: .15s; }
+.adm-view.anim .card:nth-of-type(1), .adm-view.anim .day-block:nth-child(1), .adm-view.anim .set-group:nth-child(1) { animation-delay: .12s; }
+.adm-view.anim .card:nth-of-type(2), .adm-view.anim .day-block:nth-child(2), .adm-view.anim .set-group:nth-child(2) { animation-delay: .19s; }
+.adm-view.anim .card:nth-of-type(3), .adm-view.anim .day-block:nth-child(3), .adm-view.anim .set-group:nth-child(3) { animation-delay: .26s; }
+.adm-view.anim .card:nth-of-type(n+4), .adm-view.anim .day-block:nth-child(n+4), .adm-view.anim .set-group:nth-child(n+4) { animation-delay: .32s; }
+.card.leaving { animation: cardOut .38s cubic-bezier(.6, 0, .4, 1) forwards; pointer-events: none; }
+.card.leaving.ok { animation-name: cardOutOk; }
+@keyframes cardOut { to { opacity: 0; transform: translateX(-40px) scale(.96); } }
+@keyframes cardOutOk { 30% { box-shadow: inset 0 0 0 2px var(--green); } to { opacity: 0; transform: translateX(40px) scale(.96); } }
+.card.is-new { animation: newGlow 1.4s ease-in-out 3; }
+@keyframes newGlow { 50% { box-shadow: inset 0 0 0 2px var(--volt), 0 0 30px -6px rgba(240, 225, 74, .45); } }
+.notify { animation: panelIn .5s var(--ease-out) both; }
+.kpi { transition: transform .3s var(--ease-spring), background .2s; }
+.kpi:active { transform: scale(.95); }
+.adm-tabs button svg { transition: transform .35s var(--ease-spring); }
+.adm-tabs button[aria-current="page"] svg { transform: translateY(-2px) scale(1.12); }
+.adm-tabs button[aria-current="page"]::before { content: ""; position: absolute; top: 2px; left: 50%; width: 26px; height: 3px; margin-left: -13px; border-radius: 3px; background: var(--volt); animation: popIn .4s var(--ease-spring); }
+.icon-btn { transition: transform .25s var(--ease-spring), background .2s; }
+.icon-btn:active { transform: scale(.88); }
+.icon-btn.ok:hover { transform: scale(1.08); }
+.toast { animation: toastIn .45s var(--ease-spring); }
+.toast.new { animation: toastIn .45s var(--ease-spring), shake .5s ease .45s; }
+@keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .success .big-ic svg { stroke-dashoffset: 0; }
+  .confetti { display: none; }
+}

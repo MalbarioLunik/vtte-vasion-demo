@@ -51,6 +51,7 @@
   /* ---------- Rendu ---------- */
   function renderTabs() {
     Array.prototype.forEach.call(el.tabs, function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-mode') === ui.mode)); });
+    el.tabs[0].parentNode.setAttribute('data-mode', ui.mode);
     el.acts.hidden = ui.mode !== 'sortie';
   }
   function renderActs() {
@@ -82,7 +83,8 @@
         U.meter(st, true) + '<span class="need">' + U.needText(st) + ' · Rejoindre</span></button>';
     }).join('') + '</div>';
   }
-  function renderCalendar() {
+  // anim : 'next' / 'prev' (changement de mois) ou true (premier affichage, changement de sortie)
+  function renderCalendar(anim) {
     var y = ui.month.getFullYear(), m = ui.month.getMonth();
     el.title.textContent = MONTHS[m] + ' ' + y;
     el.prev.disabled = ui.month <= minMonth;
@@ -121,10 +123,12 @@
           label += ', ' + Math.max(0, best) + ' vélos libres';
         }
       }
-      html += '<button type="button" class="' + cls.join(' ') + '" data-date="' + date + '" aria-label="' + esc(label) + '"' +
+      html += '<button type="button" class="' + cls.join(' ') + '" style="--d:' + (d - start + offset) + '" data-date="' + date + '" aria-label="' + esc(label) + '"' +
         (past ? ' disabled' : '') + ' aria-selected="' + (ui.selected === date) + '"><span class="num">' + d + '</span><span class="marks">' + marks.join('') + '</span></button>';
     }
     el.grid.innerHTML = html;
+    el.grid.className = 'cal-grid' + (anim ? ' anim' + (anim === 'next' || anim === 'prev' ? ' ' + anim : '') : '');
+    if (anim) replay(el.title, 'flip');
     el.legend.innerHTML = ui.mode === 'sortie'
       ? '<span><i class="mk need">−2</i> Il manque des participants</span><span><i class="mk wait">3 pl.</i> Minimum atteint</span><span><i class="mk open">3 pl.</i> Sortie confirmée</span><span><i class="mk busy">pris</i> Guide indisponible</span>'
       : '<span><i class="mk b-ok">8</i> Vélos libres</span><span><i class="mk b-low">2</i> Peu de vélos</span><span><i class="mk b-none">0</i> Complet</span>';
@@ -147,7 +151,7 @@
         return '<div class="slot-row"><b>' + VE.slotLabel(sl) + '</b><span>' + plural(free, 'vélo') + ' libre' + (free > 1 ? 's' : '') + '</span><div class="meter"><i class="' + (free === 0 ? 'none' : free < 3 ? 'low' : '') + '" style="width:' + pct + '%"></i></div></div>';
       }).join('') + '</div>';
       if (!VE.isClosed(date)) h += '<button type="button" class="btn btn-volt btn-block" data-open-loc>' + svg('bike') + ' Réserver des vélos ce jour</button>';
-      el.day.innerHTML = h;
+      el.day.innerHTML = h; replay(el.day, 'swap');
       return;
     }
     var info = dayInfoSortie(date), a = info.a;
@@ -180,26 +184,28 @@
         '<p style="margin:2px 0 0;font-size:.82rem;color:var(--muted)">Minimum ' + a.min + ' participants. Moins nombreux ? Votre groupe restera ouvert pour être complété.</p>';
     }
     h += '</div>';
-    el.day.innerHTML = h;
+    el.day.innerHTML = h; replay(el.day, 'swap');
   }
   function notice(kind, icon, text) { return '<div class="notice ' + kind + '">' + svg(icon) + '<span>' + text + '</span></div>'; }
 
-  function renderAll() { renderTabs(); renderActs(); renderInfo(); renderGroups(); renderCalendar(); renderDay(); }
+  function renderAll(anim) { renderTabs(); renderActs(); renderInfo(); renderGroups(); renderCalendar(anim); renderDay(); }
+  // relance une animation CSS sur un élément déjà présent
+  function replay(node, cls) { node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); }
 
   /* ---------- Interactions ---------- */
   Array.prototype.forEach.call(el.tabs, function (b) {
-    b.addEventListener('click', function () { ui.mode = b.getAttribute('data-mode'); renderAll(); });
+    b.addEventListener('click', function () { ui.mode = b.getAttribute('data-mode'); renderAll(true); });
   });
   el.acts.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]'); if (!b) return;
-    ui.activity = b.getAttribute('data-act'); renderAll();
+    ui.activity = b.getAttribute('data-act'); renderAll(true);
   });
   el.groups.addEventListener('click', function (e) {
     var b = e.target.closest('[data-og]'); if (!b) return;
     focusSession(b.getAttribute('data-og'), true);
   });
-  el.prev.addEventListener('click', function () { ui.month = new Date(ui.month.getFullYear(), ui.month.getMonth() - 1, 1); renderCalendar(); });
-  el.next.addEventListener('click', function () { ui.month = new Date(ui.month.getFullYear(), ui.month.getMonth() + 1, 1); renderCalendar(); });
+  el.prev.addEventListener('click', function () { ui.month = new Date(ui.month.getFullYear(), ui.month.getMonth() - 1, 1); renderCalendar('prev'); });
+  el.next.addEventListener('click', function () { ui.month = new Date(ui.month.getFullYear(), ui.month.getMonth() + 1, 1); renderCalendar('next'); });
   el.grid.addEventListener('click', function (e) {
     var b = e.target.closest('[data-date]'); if (!b || b.disabled) return;
     ui.selected = b.getAttribute('data-date');
@@ -211,13 +217,13 @@
     if (e.target.closest('[data-propose]')) return openPropose(ui.selected);
     if (e.target.closest('[data-open-loc]')) return openLocation(ui.selected);
   });
-  document.addEventListener('ve:change', function () { renderAll(); });
+  document.addEventListener('ve:change', function () { renderAll(false); });
 
   function focusSession(id, openSheet) {
     var s = VE.session(id); if (!s) return false;
     ui.mode = 'sortie'; ui.activity = s.activity; ui.selected = s.date;
     var d = VE.parse(s.date); ui.month = new Date(d.getFullYear(), d.getMonth(), 1);
-    renderAll();
+    renderAll(true);
     if (openSheet && VE.joinable(s)) openJoin(id);
     return true;
   }
@@ -406,6 +412,8 @@
       '<a class="btn btn-line btn-block" href="gerant.html">' + svg('phonebox') + ' Voir la demande côté gérant (démo)</a></div></div>' +
       '<div class="sheet-foot"><button class="btn btn-volt btn-block" type="submit">Terminer</button></div></form>';
     $('[data-close]', el.sheet).addEventListener('click', closeSheet);
+    confetti($('.success', el.sheet));
+    if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate(30);
     var sb = $('[data-share]', el.sheet);
     if (sb) sb.addEventListener('click', function () {
       var url = location.origin + location.pathname + '?groupe=' + encodeURIComponent(sb.getAttribute('data-share'));
@@ -414,12 +422,26 @@
       else if (navigator.clipboard) navigator.clipboard.writeText(text + ' ' + url).then(function () { sb.innerHTML = svg('copy') + ' Lien copié !'; });
     });
     ui.selected = o.date;
-    renderAll();
+    renderAll(false);
+  }
+
+  function confetti(host) {
+    if (!host || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var colors = ['#f0e14a', '#4caf5a', '#0d100e', '#ff6a3d', '#ffffff'];
+    for (var i = 0; i < 46; i++) {
+      var c = document.createElement('i');
+      var ang = Math.random() * Math.PI * 2, dist = 70 + Math.random() * 120;
+      c.className = 'confetti';
+      c.style.cssText = '--x:' + Math.round(Math.cos(ang) * dist) + 'px;--y:' + Math.round(Math.sin(ang) * dist * .7 - 40) + 'px;--r:' + Math.round(Math.random() * 720 - 360) + 'deg;' +
+        'background:' + colors[i % colors.length] + ';animation-delay:' + (Math.random() * .12).toFixed(2) + 's;' + (i % 3 ? '' : 'border-radius:50%;');
+      host.appendChild(c);
+    }
+    setTimeout(function () { host.querySelectorAll('.confetti').forEach(function (n) { n.remove(); }); }, 2200);
   }
 
   /* ---------- Démarrage ---------- */
   var q = new URLSearchParams(location.search);
   if (q.get('type') === 'location') ui.mode = 'location';
   if (q.get('sortie') && D.activities[q.get('sortie')]) ui.activity = q.get('sortie');
-  if (!(q.get('groupe') && focusSession(q.get('groupe'), true))) renderAll();
+  if (!(q.get('groupe') && focusSession(q.get('groupe'), true))) renderAll(true);
 })();

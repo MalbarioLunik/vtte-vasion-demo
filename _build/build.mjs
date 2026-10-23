@@ -203,6 +203,9 @@ const FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;1,700;1,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">`;
 
+// Active les animations dès le premier rendu ; si motion.js ne se charge pas, on les retire après 3 s
+const MOTION_BOOT = `<script>(function(d){if(!matchMedia('(prefers-reduced-motion: reduce)').matches){d.classList.add('js-motion');setTimeout(function(){if(!window.__motion)d.classList.remove('js-motion')},3000)}})(document.documentElement)</script>`;
+
 function head({ title, desc, extra = '' }) {
   return `<!doctype html>
 <html lang="fr">
@@ -227,7 +230,7 @@ ${extra}
 }
 
 function page({ file, title, desc, active, body, scripts = [], noBar = false, extraHead = '' }) {
-  const html = `${head({ title, desc, extra: extraHead })}
+  const html = `${head({ title, desc, extra: MOTION_BOOT + extraHead })}
 <body${noBar ? ' class="no-bar"' : ''}>
 <a class="skip" href="#main">Aller au contenu</a>
 ${SPRITE}
@@ -241,6 +244,7 @@ ${lightbox}
 <script src="${asset('assets/js/data.js')}"></script>
 <script src="${asset('assets/js/store.js')}"></script>
 <script src="${asset('assets/js/site.js')}"></script>
+<script src="${asset('assets/js/motion.js')}"></script>
 ${scripts.map((s) => `<script src="${asset(s)}"></script>`).join('\n')}
 </body>
 </html>
@@ -250,6 +254,23 @@ ${scripts.map((s) => `<script src="${asset(s)}"></script>`).join('\n')}
 }
 
 /* ---------- Composants ---------- */
+const tickerBand = (cls, items) => `<div class="ticker ${cls}"><div class="ticker-track">${[0, 1].map(() => items.map((t) => `<span>${t}</span>`).join('')).join('')}</div></div>`;
+
+// Parcours décoratif : une version téléphone et une version large, le vélo suit la ligne au défilement
+function trailSvg(k, vb, d, [sx, sy], [fx, fy]) {
+  return `<svg class="trail-${k}" viewBox="${vb}" data-trail data-stops="Maïdo|Volcan|Plages|Repas Peï" focusable="false">
+    <path class="trail-ghost" d="${d}"/>
+    <path class="trail-line" d="${d}"/>
+    <text x="${sx}" y="${sy + 36}">Départ</text>
+    <g transform="translate(${fx} ${fy})"><path d="M0 4V-36" stroke="#0d100e" stroke-width="3" stroke-linecap="round"/><path class="trail-pennant" d="M0 -36l24 8-24 8z" stroke="#0d100e" stroke-width="2" stroke-linejoin="round"/></g>
+    <g class="trail-stops"></g>
+    <g class="trail-rider"><circle r="18"/><use href="#i-bike" x="-12" y="-12" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>
+  </svg>`;
+}
+const trail = () => `<div class="trail" aria-hidden="true">
+      ${trailSvg('m', '0 0 400 150', 'M18 104 C 70 104, 84 44, 140 50 S 228 126, 282 104 S 344 40, 382 56', [18, 104], [382, 56])}
+      ${trailSvg('d', '0 0 1200 170', 'M24 120 C 170 120, 214 44, 362 52 S 560 142, 702 118 S 902 30, 1030 48 S 1150 104, 1172 104', [24, 120], [1172, 104])}
+    </div>`;
 const tripCard = (s, sizes = '(min-width:1024px) 25vw, (min-width:640px) 46vw, 82vw') => `<a class="trip reveal" href="${s.slug}.html">
   ${img(s.card, s.cardAlt, { sizes })}
   <div class="tags"><span class="tag">${s.badge}</span><span class="tag price">${s.price} €</span></div>
@@ -332,12 +353,17 @@ page({
       </div>
     </div>
   </div>
+  <a class="scroll-cue" href="#sorties" aria-label="Voir la suite"><i></i>Défiler</a>
 </section>
 
-<div class="ticker" aria-hidden="true"><div class="ticker-track">${[0, 1].map(() => ['Sortie Maïdo', 'Sortie Volcan Fournaise', 'Repas Peï à la ferme', 'Route des plages', 'Pour tous les niveaux', 'E-VTT Focus récents', 'Guide diplômé BPJEPS', 'Formé SST', 'Location VTT électrique', 'Groupes max 7 personnes'].map((t) => `<span>${t}</span>`).join('')).join('')}</div></div>
+<div class="tickers" aria-hidden="true">
+  ${tickerBand('t1', ['Sortie Maïdo', 'Sortie Volcan Fournaise', 'Repas Peï à la ferme', 'Route des plages', 'Pour tous les niveaux', 'E-VTT Focus récents', 'Guide diplômé BPJEPS', 'Formé SST', 'Location VTT électrique', 'Groupes max 7 personnes'])}
+  ${tickerBand('t2', ['L’île intense', 'Petits groupes', 'Disponible 7j/7', 'Côte Ouest', 'Cirque de Mafate', 'Piton de la Fournaise', 'La Saline-les-Bains', 'Lagon'])}
+</div>
 
 <section class="section" id="sorties">
   <div class="container">
+    ${trail()}
     <div class="section-head row">
       <div><span class="eyebrow">Nos programmes</span><h2>Sorties en E-VTT <span class="hl">à La Réunion</span></h2></div>
       <p class="lead">Des sorties VTT encadrées pour tous les niveaux : Maïdo, volcan, Route des plages, repas Peï à la ferme, et même une sortie sur-mesure selon vos envies.</p>
